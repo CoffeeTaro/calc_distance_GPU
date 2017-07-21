@@ -1,7 +1,43 @@
 #include <stdio.h>
 #include <math.h>
+#include "distancelib.h"
 
 #define TO_RAD (M_PI / 180)
+
+
+int main(void){
+    //double geo[2][2] = {{35, 150}, {35, 145}};
+    //double tweet[2][2] = {{40, 135}, {30, 140}};
+    int geo_size = 5;
+    int tweet_size = 2;
+    // geo parameter
+    double geo_lat[5] = {35, 30, 45, 32, 33};
+    double geo_lng[5] = {150, 145, 130, 140, 141};
+    double geo_time[5] = {1, 2, 3, 4, 5};
+    // time parameter
+    double tweet_lat[2] = {40, 50};
+    double tweet_lng[2] = {135, 140};
+    double tweet_time[2] = {1, 2};
+    double tweet_flag[2] = {0, 1};
+
+    //int distance_size = geo_size * tweet_size;
+    
+    double **result_matrix = (double **)malloc(sizeof(double *) * geo_size);
+    for(int i=0; i<geo_size; i++){
+        result_matrix[i] = (double *)malloc(sizeof(double) * 3); 
+    }
+
+    calc_distance2d_gpu(geo_lat, geo_lng, geo_time, tweet_lat, tweet_lng, tweet_time, tweet_flag, geo_size, tweet_size, result_matrix);
+
+    for(int c = 0; c < geo_size; c++){
+        printf("minimum %f\n", result_matrix[c][0]);
+        printf("time_lag %f\n", result_matrix[c][1]);
+        printf("flag %f\n", result_matrix[c][2]);
+    }
+    free(result_matrix);
+    return 0;
+}
+
 
 __global__ void calc_distance(double *latitude, double *longitude, double *time, double *t_latitude, double *t_longitude, double *t_time, double *t_flag, double *result_distance, double *time_lag, double *tweet_flag, int *nx){
     unsigned int ix = threadIdx.x + blockIdx.x * blockDim.x;
@@ -160,38 +196,4 @@ void calc_distance2d_gpu(double *geo_lat, double *geo_lng, double *geo_time, dou
         result[g][2] = m_flag;
     }
 
-}
-
-
-int main(void){
-    //double geo[2][2] = {{35, 150}, {35, 145}};
-    //double tweet[2][2] = {{40, 135}, {30, 140}};
-    int geo_size = 5;
-    int tweet_size = 2;
-    // geo parameter
-    double geo_lat[5] = {35, 30, 45, 32, 33};
-    double geo_lng[5] = {150, 145, 130, 140, 141};
-    double geo_time[5] = {1, 2, 3, 4, 5};
-    // time parameter
-    double tweet_lat[2] = {40, 50};
-    double tweet_lng[2] = {135, 140};
-    double tweet_time[2] = {1, 2};
-    double tweet_flag[2] = {0, 1};
-
-    //int distance_size = geo_size * tweet_size;
-    
-    double **result_matrix = (double **)malloc(sizeof(double *) * geo_size);
-    for(int i=0; i<geo_size; i++){
-        result_matrix[i] = (double *)malloc(sizeof(double) * 3); 
-    }
-
-    calc_distance2d_gpu(geo_lat, geo_lng, geo_time, tweet_lat, tweet_lng, tweet_time, tweet_flag, geo_size, tweet_size, result_matrix);
-
-    for(int c = 0; c < geo_size; c++){
-        printf("minimum %f\n", result_matrix[c][0]);
-        printf("time_lag %f\n", result_matrix[c][1]);
-        printf("flag %f\n", result_matrix[c][2]);
-    }
-    free(result_matrix);
-    return 0;
 }
