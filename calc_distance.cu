@@ -110,7 +110,7 @@ void calc_distance2d_gpu(double *geo_lat, double *geo_lng, double *geo_time, dou
     cudaFree(d_tweet_flag);
     cudaFree(d_distance);
     cudaFree(d_time_lag);
-    cudaFree(d_tweet_flag);
+    cudaFree(d_return_tweet_flag);
     cudaFree(d_nx);
 
     //double dd[5][2][3];
