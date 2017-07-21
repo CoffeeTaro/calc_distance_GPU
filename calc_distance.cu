@@ -3,7 +3,7 @@
 
 #define TO_RAD (M_PI / 180)
 
-__global__ void calc_distance(double *latitude, double *longitude, double *time, double *t_latitude, double *t_longitude, double *t_time, double *t_flag, double *result_distance, double *time_lag, double *tweet_flag, int nx){
+__global__ void calc_distance(double *latitude, double *longitude, double *time, double *t_latitude, double *t_longitude, double *t_time, double *t_flag, double *result_distance, double *time_lag, double *tweet_flag, int *nx){
     unsigned int ix = threadIdx.x + blockIdx.x * blockDim.x;
     unsigned int iy = threadIdx.y + blockIdx.y * blockDim.y;
     double lat, lng, t_lat, t_lng;
@@ -11,6 +11,8 @@ __global__ void calc_distance(double *latitude, double *longitude, double *time,
     lng = longitude[ix];
     t_lat = t_latitude[iy];
     t_lng = t_longitude[iy];
+    int size;
+    size = nx[ix];
 
     // haver shine
     lng -= t_lng;
@@ -23,11 +25,11 @@ __global__ void calc_distance(double *latitude, double *longitude, double *time,
     dy = sin(lng) * cos(lat);
     // Earth radius is 6371 km
     double distance =  asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371;
-    result_distance[ix + iy * nx] = distance;
+    result_distance[ix + iy * size] = distance;
 
-    time_lag[ix + iy * nx] = fabs(time[ix] - t_time[iy]);
-    tweet_flag[ix + iy * nx] = t_flag[iy];
-    //printf("geoIndex %d, twiIndex %d, distance idx %d, distance %f, time_lag %f, time_flag %f\n", ix, iy, ix + iy * nx, distance, time_lag[ix + iy * nx], t_flag[iy]);
+    time_lag[ix + iy * size] = fabs(time[ix] - t_time[iy]);
+    tweet_flag[ix + iy * size] = t_flag[iy];
+    //printf("geoIndex %d, twiIndex %d, distance idx %d, distance %f, time_lag %f, time_flag %f\n", ix, iy, ix + iy * size, distance, time_lag[ix + iy * size], t_flag[iy]);
 }
 
 
@@ -68,8 +70,16 @@ void calc_distance2d_gpu(double *geo_lat, double *geo_lng, double *geo_time, dou
     //dim3 grid(1);
     dim3 block(1);
     dim3 grid(geo_size, tweet_size);
-    int nx = geo_size;
-    calc_distance<<<grid, block>>>(d_geo_lat, d_geo_lng, d_geo_time, d_tweet_lat, d_tweet_lng, d_tweet_time, d_tweet_flag, d_distance, d_time_lag, d_return_tweet_flag, nx);
+    int *nx;
+    nx = (int *)malloc(sizeof(int) * geo_size);
+    for(int i = 0; i < geo_size; i++){
+        nx[i] = geo_size;
+    }
+    int *d_nx;
+    cudaMalloc(&d_nx, geo_size * sizeof(int));
+    cudaMemcpy(d_nx, nx, geo_size * sizeof(int), cudaMemcpyHostToDevice );
+    
+    calc_distance<<<grid, block>>>(d_geo_lat, d_geo_lng, d_geo_time, d_tweet_lat, d_tweet_lng, d_tweet_time, d_tweet_flag, d_distance, d_time_lag, d_return_tweet_flag, d_nx);
 
     cudaMemcpy(distance, d_distance, distance_size * sizeof(double), cudaMemcpyDeviceToHost );
     cudaMemcpy(time_lag, d_time_lag, distance_size * sizeof(double), cudaMemcpyDeviceToHost );
@@ -101,6 +111,7 @@ void calc_distance2d_gpu(double *geo_lat, double *geo_lng, double *geo_time, dou
     cudaFree(d_distance);
     cudaFree(d_time_lag);
     cudaFree(d_tweet_flag);
+    cudaFree(d_nx);
 
     //double dd[5][2][3];
     // 3D array [geo_size][tweet_size][3]
